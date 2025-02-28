@@ -14,7 +14,12 @@ aws-credential-types = "1.2.1"
 aws-sdk-route53 = "1.66.0"
 clap = { version = "4.5.31", features = ["derive"] }
 log = { version = "0.4.26", features = ["serde"] }
-reqwest = { version = "0.12.12", features = ["rustls-tls-webpki-roots"] }
+reqwest = { version = "0.12.12", default-features = false, features = [
+    "rustls-tls",
+    "charset",
+    "http2",
+    "macos-system-configuration",
+] }
 serde = { version = "1.0.218", features = ["serde_derive"] }
 shadow-rs = { version = "1.0.1", default-features = false, features = [
     "metadata",
