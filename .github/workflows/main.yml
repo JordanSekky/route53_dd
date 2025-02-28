@@ -37,7 +37,6 @@ jobs:
         with:
           target: x86_64-unknown-linux-musl
       - run: cargo build --release --target=x86_64-unknown-linux-musl
-      - run: ls -lhR ./target
       - name: Generate release tag
         id: tag
         run: |
@@ -46,5 +45,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.release_tag }}
-          files: target/release/route53_dd
+          files: ./target/x86_64-unknown-linux-musl/release/route53_dd
 
