@@ -11,6 +11,7 @@ use log::{error, info};
 use serde::Deserialize;
 mod credential_provider;
 use clap::Parser;
+use shadow_rs::shadow;
 use simple_logger::SimpleLogger;
 use tokio::{
     fs::File,
@@ -19,14 +20,19 @@ use tokio::{
     time::{self},
 };
 
+shadow!(build);
+
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None)]
 struct Args {
     #[arg(long, default_value_t = false)]
     daemon: bool,
 
     #[arg(short, long, default_value = "config.toml")]
     config: PathBuf,
+
+    #[arg(long, short, action)]
+    version: bool,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -46,6 +52,25 @@ struct ConfigFile {
     zones: Vec<HostedZoneConfig>,
 }
 
+#[allow(clippy::const_is_empty)]
+fn print_version() {
+    if !build::TAG.is_empty() {
+        if !build::GIT_CLEAN {
+            println!("{}-{}-dirty", build::LAST_TAG, build::SHORT_COMMIT);
+        } else {
+            println!("{}-{}", build::LAST_TAG, build::SHORT_COMMIT);
+        }
+    } else if build::LAST_TAG.is_empty() {
+        if !build::GIT_CLEAN {
+            println!("{}-{}-dirty", build::PKG_VERSION, build::SHORT_COMMIT);
+        } else {
+            println!("{}-{}", build::PKG_VERSION, build::SHORT_COMMIT);
+        }
+    } else {
+        println!("{}", build::LAST_TAG);
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     SimpleLogger::new()
@@ -54,6 +79,12 @@ async fn main() -> Result<(), Error> {
         .unwrap();
 
     let args = Args::parse();
+
+    if args.version {
+        print_version();
+        return Ok(());
+    }
+
     let mut config_file_string = String::new();
     info!("Loading config file from {}", args.config.to_string_lossy());
     File::open(args.config)
