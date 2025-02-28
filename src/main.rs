@@ -54,18 +54,10 @@ struct ConfigFile {
 
 #[allow(clippy::const_is_empty)]
 fn print_version() {
-    if !build::TAG.is_empty() {
-        if !build::GIT_CLEAN {
-            println!("{}-dirty", build::TAG);
-        } else {
-            println!("{}", build::TAG);
-        }
-    } else if !build::LAST_TAG.is_empty() {
-        println!("{}", build::LAST_TAG);
-    } else if !build::GIT_CLEAN {
-        println!("{}-{}-dirty", build::PKG_VERSION, build::SHORT_COMMIT);
-    } else {
+    if build::GIT_CLEAN {
         println!("{}-{}", build::PKG_VERSION, build::SHORT_COMMIT);
+    } else {
+        println!("{}-{}-dirty", build::PKG_VERSION, build::SHORT_COMMIT);
     }
 }
 
