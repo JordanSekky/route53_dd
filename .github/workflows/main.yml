@@ -27,13 +27,21 @@ jobs:
   
   release:
     name: cargo build --release
+    needs: [formatting, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo build --release
+        with:
+          target: x86_64-unknown-linux-musl
+      - run: cargo build --release --target=x86_64-unknown-linux-musl
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo release_tag=$(./target/release/route53_dd --version) >> "$GITHUB_OUTPUT"
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
           files: target/release/route53_dd
 
