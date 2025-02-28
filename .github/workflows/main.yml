@@ -37,6 +37,7 @@ jobs:
         with:
           target: x86_64-unknown-linux-musl
       - run: cargo build --release --target=x86_64-unknown-linux-musl
+      - run: ls -lhaR .
       - name: Generate release tag
         id: tag
         run: |
