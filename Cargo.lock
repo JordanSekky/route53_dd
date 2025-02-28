@@ -1666,6 +1666,7 @@ dependencies = [
  "shadow-rs",
  "simple_logger",
  "tokio",
+ "tokio-util",
  "toml",
 ]
 
