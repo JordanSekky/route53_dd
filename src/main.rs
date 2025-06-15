@@ -16,9 +16,11 @@ use simple_logger::SimpleLogger;
 use tokio::{
     fs::File,
     io::AsyncReadExt,
+    select,
     task::JoinSet,
     time::{self},
 };
+use tokio_util::sync::CancellationToken;
 
 shadow!(build);
 
@@ -82,17 +84,35 @@ async fn main() -> Result<(), Error> {
         .read_to_string(&mut config_file_string)
         .await?;
     let config_file: ConfigFile = toml::from_str(&config_file_string)?;
+
+    let shutdown_token = tokio_util::sync::CancellationToken::new();
+    let cloned_token = shutdown_token.clone();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("Shutting down.");
+        cloned_token.cancel();
+    });
+
     let mut task_set = JoinSet::new();
 
     for zone in config_file.zones {
-        task_set.spawn(daemon_update_zone(zone, args.daemon));
+        task_set.spawn(daemon_update_zone(
+            zone,
+            args.daemon,
+            shutdown_token.clone(),
+        ));
     }
+
     let results = task_set.join_all().await;
 
     results.into_iter().collect()
 }
 
-async fn daemon_update_zone(zone: HostedZoneConfig, daemon: bool) -> Result<(), Error> {
+async fn daemon_update_zone(
+    zone: HostedZoneConfig,
+    daemon: bool,
+    shutdown_token: CancellationToken,
+) -> Result<(), Error> {
     if !daemon {
         if let Err(e) = update_hosted_zone(zone.clone()).await {
             error!("Error while updating zone {:?}: {:?}", zone, e);
@@ -102,7 +122,13 @@ async fn daemon_update_zone(zone: HostedZoneConfig, daemon: bool) -> Result<(), 
     }
     let mut interval = time::interval(Duration::from_secs(60 * zone.update_frequency_minutes));
     loop {
-        interval.tick().await;
+        select! {
+            _ = interval.tick() => {}
+            _ = shutdown_token.cancelled() => {
+                info!("{}.{} shutdown.", zone.record_name, zone.zone_name);
+                break Ok(())
+            }
+        }
         if let Err(e) = update_hosted_zone(zone.clone()).await {
             error!("Error while updating zone {:?}: {:?}", zone, e);
             error!("Trying again at {:?}", interval.period())
@@ -126,7 +152,6 @@ async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
         .dns_name(zone.zone_name.clone())
         .send()
         .await?;
-    info!("Found hosted zones {:?}", hosted_zones);
     let hosted_zone = hosted_zones
         .hosted_zones
         .into_iter()
