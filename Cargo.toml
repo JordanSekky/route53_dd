@@ -1,0 +1,17 @@
+[package]
+name = "route53_dd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.96"
+aws-config = "1.5.17"
+aws-credential-types = "1.2.1"
+aws-sdk-route53 = "1.66.0"
+clap = { version = "4.5.31", features = ["derive"] }
+log = { version = "0.4.26", features = ["serde"] }
+reqwest = { version = "0.12.12", features = ["rustls-tls-webpki-roots"] }
+serde = { version = "1.0.218", features = ["serde_derive"] }
+simple_logger = "5.0.0"
+tokio = { version = "1.43.0", features = ["full"] }
+toml = "0.8.20"
