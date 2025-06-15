@@ -40,7 +40,7 @@ jobs:
       - name: Generate release tag
         id: tag
         run: |
-          echo release_tag=$(./target/release/route53_dd --version) >> "$GITHUB_OUTPUT"
+          echo release_tag=$(/home/runner/work/route53_dd/route53_dd/target/release/route53_dd --version) >> "$GITHUB_OUTPUT"
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
