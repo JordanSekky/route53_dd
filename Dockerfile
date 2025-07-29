@@ -14,5 +14,5 @@ RUN cargo build --release --locked --target "$TARGET"
 
 # and then copy it to an empty docker image
 FROM scratch
-COPY --from=builder target/release/route53_dd /bin/route53_dd
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/route53_dd /bin/route53_dd
 RUN ["/bin/route53_dd"]
