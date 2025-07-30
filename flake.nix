@@ -12,12 +12,12 @@
       stdenv.mkDerivation rec {
         name = "route53_dd-${version}";
 
-        version = "0.1.0-d78329e7";
+        version = "0.1.0-0aef5d72";
 
         # https://nixos.wiki/wiki/Packaging/Binaries
         executable = pkgs.fetchurl {
           url = "https://github.com/JordanSekky/route53_dd/releases/download/${version}/route53_dd";
-          sha256 = "sha256-k2B2z+CDOf3QnD6f1RT0NUdXeQ4ksuaqYmMcOnaYa4c=";
+          sha256 = "sha256-+lIFfUE78j1ek8zGgUHtsjzZnwSzUojUmPscvCfAxA0=";
         };
 
         phases = [ "installPhase" ]; # Removes all phases except installPhase
