@@ -1,4 +1,4 @@
-use std::{net::IpAddr, path::PathBuf, time::Duration};
+use std::{net::IpAddr, time::Duration};
 
 use anyhow::{anyhow, Error};
 use aws_config::{self, BehaviorVersion, Region};
@@ -14,10 +14,7 @@ use clap::Parser;
 use shadow_rs::shadow;
 use simple_logger::SimpleLogger;
 use tokio::{
-    fs::File,
-    io::AsyncReadExt,
     select,
-    task::JoinSet,
     time::{self},
 };
 use tokio_util::sync::CancellationToken;
@@ -27,11 +24,38 @@ shadow!(build);
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
 struct Args {
-    #[arg(long, default_value_t = false)]
+    #[arg(long, short, default_value_t = false)]
     daemon: bool,
 
-    #[arg(short, long, default_value = "config.toml")]
-    config: PathBuf,
+    #[arg(long, short, env = "UPDATE_FREQUENCY_MINUTES", default_value_t = 5)]
+    update_frequency_minutes: u64,
+
+    #[arg(long, env = "ZONE_NAME")]
+    zone_name: String,
+
+    #[arg(long, env = "RECORD_NAME")]
+    record_name: String,
+
+    #[arg(long, env = "IPV4", default_value_t = true)]
+    ipv4: bool,
+
+    #[arg(long, env = "IPV6", default_value_t = false)]
+    ipv6: bool,
+
+    #[arg(long, env = "AWS_REGION")]
+    region: String,
+
+    #[arg(long, env = "AWS_ACCESS_KEY_ID")]
+    aws_access_key_id: String,
+
+    #[arg(long, env = "AWS_SECRET_ACCESS_KEY")]
+    aws_secret_access_key: String,
+
+    #[arg(long, env = "AWS_SESSION_TOKEN")]
+    aws_session_token: Option<String>,
+
+    #[arg(long, env = "TTL_SECONDS", default_value_t = 300)]
+    ttl_seconds: i64,
 
     #[arg(long, short, action)]
     version: bool,
@@ -47,11 +71,6 @@ struct HostedZoneConfig {
     pub region: String,
     pub aws_credentials: AwsCredentials,
     pub ttl_seconds: i64,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct ConfigFile {
-    zones: Vec<HostedZoneConfig>,
 }
 
 #[allow(clippy::const_is_empty)]
@@ -77,13 +96,21 @@ async fn main() -> Result<(), Error> {
         return Ok(());
     }
 
-    let mut config_file_string = String::new();
-    info!("Loading config file from {}", args.config.to_string_lossy());
-    File::open(args.config)
-        .await?
-        .read_to_string(&mut config_file_string)
-        .await?;
-    let config_file: ConfigFile = toml::from_str(&config_file_string)?;
+    let zone = HostedZoneConfig {
+        update_frequency_minutes: args.update_frequency_minutes,
+        zone_name: args.zone_name,
+        record_name: args.record_name,
+        ipv4: args.ipv4,
+        ipv6: args.ipv6,
+        region: args.region,
+        aws_credentials: AwsCredentials {
+            access_key_id: args.aws_access_key_id,
+            secret_access_key: args.aws_secret_access_key,
+            session_token: args.aws_session_token,
+            expires_after: None,
+        },
+        ttl_seconds: args.ttl_seconds,
+    };
 
     let shutdown_token = tokio_util::sync::CancellationToken::new();
     let cloned_token = shutdown_token.clone();
@@ -93,19 +120,7 @@ async fn main() -> Result<(), Error> {
         cloned_token.cancel();
     });
 
-    let mut task_set = JoinSet::new();
-
-    for zone in config_file.zones {
-        task_set.spawn(daemon_update_zone(
-            zone,
-            args.daemon,
-            shutdown_token.clone(),
-        ));
-    }
-
-    let results = task_set.join_all().await;
-
-    results.into_iter().collect()
+    daemon_update_zone(zone, args.daemon, shutdown_token).await
 }
 
 async fn daemon_update_zone(

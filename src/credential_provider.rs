@@ -11,10 +11,10 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
 pub struct AwsCredentials {
-    access_key_id: String,
-    secret_access_key: String,
-    session_token: Option<String>,
-    expires_after: Option<SystemTime>,
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub session_token: Option<String>,
+    pub expires_after: Option<SystemTime>,
 }
 
 impl std::fmt::Debug for AwsCredentials {
