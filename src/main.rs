@@ -22,7 +22,7 @@ use tokio_util::sync::CancellationToken;
 shadow!(build);
 
 #[derive(Parser, Debug)]
-#[command(about, long_about = None)]
+#[command(about, long_about = None, version = version())]
 struct Args {
     #[arg(long, short, default_value_t = false)]
     daemon: bool,
@@ -56,9 +56,6 @@ struct Args {
 
     #[arg(long, env = "TTL_SECONDS", default_value_t = 300)]
     ttl_seconds: i64,
-
-    #[arg(long, short, action)]
-    version: bool,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -74,12 +71,13 @@ struct HostedZoneConfig {
 }
 
 #[allow(clippy::const_is_empty)]
-fn print_version() {
-    if build::GIT_CLEAN {
-        println!("{}-{}", build::PKG_VERSION, build::SHORT_COMMIT);
+fn version() -> &'static str {
+    let s = if build::GIT_CLEAN {
+        format!("{}-{}", build::PKG_VERSION, build::SHORT_COMMIT)
     } else {
-        println!("{}-{}-dirty", build::PKG_VERSION, build::SHORT_COMMIT);
-    }
+        format!("{}-{}-dirty", build::PKG_VERSION, build::SHORT_COMMIT)
+    };
+    Box::leak(s.into_boxed_str())
 }
 
 #[tokio::main]
@@ -90,11 +88,6 @@ async fn main() -> Result<(), Error> {
         .unwrap();
 
     let args = Args::parse();
-
-    if args.version {
-        print_version();
-        return Ok(());
-    }
 
     let zone = HostedZoneConfig {
         update_frequency_minutes: args.update_frequency_minutes,
