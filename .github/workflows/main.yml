@@ -42,7 +42,7 @@ jobs:
       - name: Generate release tag
         id: tag
         run: |
-          echo release_tag=$(./target/x86_64-unknown-linux-musl/release/route53_dd --version) | cut -d' ' -f2 >> "$GITHUB_OUTPUT"
+          echo release_tag=$(./target/x86_64-unknown-linux-musl/release/route53_dd --version | cut -d' ' -f2) >> "$GITHUB_OUTPUT"
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
