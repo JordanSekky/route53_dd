@@ -6,6 +6,7 @@ use aws_sdk_route53::{
     types::{Change, ChangeBatch, ResourceRecord, ResourceRecordSet},
     Client,
 };
+use aws_smithy_runtime::client::http::hyper_014::HyperClientBuilder;
 use credential_provider::AwsCredentials;
 use log::{error, info};
 use serde::Deserialize;
@@ -123,7 +124,7 @@ async fn daemon_update_zone(
 ) -> Result<(), Error> {
     if !daemon {
         if let Err(e) = update_hosted_zone(zone.clone()).await {
-            error!("Error while updating zone {:?}: {:?}", zone, e);
+            error!("Error while updating zone {zone:?}: {e:?}");
             return Err(e);
         }
         return Ok(());
@@ -138,7 +139,7 @@ async fn daemon_update_zone(
             }
         }
         if let Err(e) = update_hosted_zone(zone.clone()).await {
-            error!("Error while updating zone {:?}: {:?}", zone, e);
+            error!("Error while updating zone {zone:?}: {e:?}");
             error!("Trying again at {:?}", interval.period())
         } else {
             info!("Updating again at {:?}", interval.period())
@@ -148,7 +149,15 @@ async fn daemon_update_zone(
 
 async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
     info!("Updating hosted zone {:?}", &zone);
+    let rustls_connector = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_webpki_roots()
+        .https_only()
+        .enable_http1()
+        .enable_http2()
+        .build();
+    let http_client = HyperClientBuilder::new().build(rustls_connector);
     let config = aws_config::defaults(BehaviorVersion::latest())
+        .http_client(http_client)
         .credentials_provider(zone.aws_credentials.clone())
         .region(Region::new(zone.region.clone()))
         .load()
@@ -166,7 +175,7 @@ async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
         .find(|_| true)
         .ok_or(anyhow!("No hosted zone found."))?
         .id;
-    info!("Found hosted zone id {}", hosted_zone);
+    info!("Found hosted zone id {hosted_zone}");
 
     let mut record_changes: Vec<Change> = Vec::with_capacity(2);
 
@@ -176,7 +185,7 @@ async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
             .build()?;
         let ipv4_result = web_client_ipv4.get("https://ifconfig.me/ip").send().await;
         let ipv4_result = ipv4_result?.error_for_status()?.text().await?;
-        info!("Found ipv4 address: {:?}", ipv4_result);
+        info!("Found ipv4 address: {ipv4_result:?}");
         let ipv4: IpAddr = ipv4_result.parse()?;
         record_changes.push(
             Change::builder()
@@ -202,7 +211,7 @@ async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
 
         let ipv6_result = web_client_ipv6.get("https://ifconfig.me/ip").send().await;
         let ipv6: IpAddr = ipv6_result?.error_for_status()?.text().await?.parse()?;
-        info!("Found ipv6 address: {:?}", ipv6);
+        info!("Found ipv6 address: {ipv6:?}");
         record_changes.push(
             Change::builder()
                 .action(aws_sdk_route53::types::ChangeAction::Upsert)
@@ -232,7 +241,7 @@ async fn update_hosted_zone(zone: HostedZoneConfig) -> Result<(), Error> {
             .send()
             .await?;
     }
-    info!("Finished updating hosted zone {:?}", zone);
+    info!("Finished updating hosted zone {zone:?}");
 
     Ok(())
 }

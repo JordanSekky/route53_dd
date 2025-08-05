@@ -9,9 +9,14 @@ shadow-rs = { version = "1.0.1" }
 
 [dependencies]
 anyhow = "1.0.96"
-aws-config = "1.5.17"
+aws-config = { version = "1.5.17", default-features = false }
 aws-credential-types = "1.2.1"
-aws-sdk-route53 = "1.66.0"
+aws-sdk-route53 = { version = "1.66.0", default-features = false, features = [
+    "rt-tokio",
+] }
+aws-smithy-runtime = { version = "1.8.6", default-features = false, features = [
+    "connector-hyper-0-14-x",
+] }
 clap = { version = "4.5.31", features = ["derive", "env"] }
 log = { version = "0.4.26", features = ["serde"] }
 reqwest = { version = "0.12.12", default-features = false, features = [
@@ -19,6 +24,13 @@ reqwest = { version = "0.12.12", default-features = false, features = [
     "charset",
     "http2",
     "macos-system-configuration",
+] }
+hyper-rustls = { version = "0.24.2", default-features = false, features = [
+    "http1",
+    "http2",
+    "webpki-tokio",
+    "webpki-roots",
+    "tls12",
 ] }
 serde = { version = "1.0.218", features = ["serde_derive"] }
 shadow-rs = { version = "1.0.1", default-features = false, features = [
